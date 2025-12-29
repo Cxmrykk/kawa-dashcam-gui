@@ -4,13 +4,17 @@ function showTab(tabId) {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
-    // Highlight button logic omitted for brevity
+    
+    // Auto-load data when tab is clicked if connected
+    if(document.getElementById('connectBtn').innerText === "Connected") {
+        if(tabId === 'settings') loadSettings();
+        if(tabId === 'system') loadSystemInfo();
+    }
 }
 
 async function connectCamera() {
     const statusEl = document.getElementById('connectionStatus');
     const btn = document.getElementById('connectBtn');
-    
     statusEl.innerText = "Connecting...";
     btn.disabled = true;
 
@@ -24,6 +28,7 @@ async function connectCamera() {
             btn.innerText = "Connected";
             startStream();
             loadSettings();
+            loadSystemInfo();
         } else {
             throw new Error(data.error);
         }
@@ -37,21 +42,21 @@ async function connectCamera() {
 function startStream() {
     const canvas = document.getElementById('videoCanvas');
     const url = 'ws://' + document.location.hostname + ':3000/api/stream';
-    
-    if (player) { player.destroy(); }
+    if (player) player.destroy();
     player = new JSMpeg.Player(url, { canvas: canvas });
 }
 
 async function loadGallery() {
     const type = document.getElementById('fileType').value;
     const grid = document.getElementById('fileGrid');
-    grid.innerHTML = '<p>Loading...</p>';
+    grid.innerHTML = '<p class="placeholder-text">Loading...</p>';
 
     try {
         const res = await fetch(`/api/files?type=${type}`);
         const files = await res.json();
-        
         grid.innerHTML = '';
+        if(files.length === 0) grid.innerHTML = '<p class="placeholder-text">No files found.</p>';
+        
         files.forEach(file => {
             const div = document.createElement('div');
             div.className = 'file-card';
@@ -59,14 +64,13 @@ async function loadGallery() {
                 <div class="file-icon">${type === 'photo' ? '🖼️' : '🎬'}</div>
                 <div class="file-info">
                     <div class="file-name" title="${file.name}">${file.name}</div>
+                    <div class="file-name" style="color:#666; font-size:11px">${file.time || file.date || ''}</div>
                     <a href="${file.url}" class="download-link" target="_blank">Download</a>
                 </div>
             `;
             grid.appendChild(div);
         });
-    } catch (e) {
-        grid.innerHTML = '<p>Error loading files.</p>';
-    }
+    } catch (e) { grid.innerHTML = '<p>Error loading files.</p>'; }
 }
 
 async function loadSettings() {
@@ -74,44 +78,39 @@ async function loadSettings() {
     try {
         const res = await fetch('/api/settings');
         const data = await res.json();
-        
         list.innerHTML = '';
-        
-        // Handle Mstar vs Amba structure differences
-        // This is a simplified renderer. Real app needs to parse specific bean structures.
-        // We assume data is an object of key-values or a complex object we flatten.
-        
-        // Example for Mstar flat object or Amba complex object:
-        const entries = Object.entries(data);
-        
+
+        // Filter out complex objects that aren't settings (like devinfo, WifiInfo)
+        const entries = Object.entries(data).filter(([key, val]) => {
+            return key !== 'devinfo' && key !== 'WifiInfo' && key !== 'status';
+        });
+
         entries.forEach(([key, val]) => {
-            // Skip complex nested objects for this demo, focus on primitives or simple objects
             if (typeof val === 'object' && val !== null && val.value) {
-                // Handle Amba/Mstar "Bean" structure { value: "ON", item: ["ON", "OFF"] }
                 createSettingInput(list, key, val.value, val.item);
             } else if (typeof val !== 'object') {
                 createSettingInput(list, key, val, null);
             }
         });
-
-    } catch (e) {
-        console.error(e);
-    }
+    } catch (e) { console.error(e); }
 }
 
 function createSettingInput(container, key, currentValue, options) {
     const div = document.createElement('div');
     div.className = 'setting-item';
     
+    // Clean up key name (e.g. "AudioRec" -> "Audio Rec")
+    const label = key.replace(/([A-Z])/g, ' $1').trim();
+
     let inputHtml = '';
     if (options && Array.isArray(options)) {
         const opts = options.map(o => `<option value="${o}" ${o === currentValue ? 'selected' : ''}>${o}</option>`).join('');
         inputHtml = `<select class="setting-value" onchange="updateSetting('${key}', this.value)">${opts}</select>`;
     } else {
-        inputHtml = `<span class="setting-value">${currentValue}</span>`;
+        inputHtml = `<span class="setting-value" style="color:#888">${currentValue}</span>`;
     }
 
-    div.innerHTML = `<span class="setting-label">${key}</span> ${inputHtml}`;
+    div.innerHTML = `<span class="setting-label">${label}</span> ${inputHtml}`;
     container.appendChild(div);
 }
 
@@ -121,10 +120,60 @@ async function updateSetting(key, value) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key, value })
     });
-    // Optional: reload settings to confirm
 }
 
 async function takePhoto() {
-    await fetch('/api/photo', { method: 'POST' });
-    alert("Photo command sent!");
+    await fetch('/api/action/photo', { method: 'POST' });
+    alert("Snapshot command sent");
+}
+
+// --- System Functions ---
+
+async function loadSystemInfo() {
+    try {
+        const res = await fetch('/api/system/info');
+        const data = await res.json();
+        
+        // Render Device Info
+        const infoDiv = document.getElementById('deviceInfo');
+        if(data.info) {
+            infoDiv.innerHTML = `
+                <div class="info-item"><span class="info-label">Model</span><span class="info-val">${data.info.model || 'N/A'}</span></div>
+                <div class="info-item"><span class="info-label">Firmware</span><span class="info-val">${data.info.softversion || 'N/A'}</span></div>
+            `;
+        }
+
+        // Render SD Info
+        const sdDiv = document.getElementById('sdInfo');
+        if(data.sd) {
+            // Mstar returns strings like "119.0G"
+            sdDiv.innerHTML = `
+                <div class="info-item"><span class="info-label">Total Space</span><span class="info-val">${data.sd.total || 'N/A'}</span></div>
+                <div class="info-item"><span class="info-label">Free Space</span><span class="info-val">${data.sd.free || 'N/A'}</span></div>
+                <div class="info-item"><span class="info-label">Status</span><span class="info-val">${data.sd.sdstat || 'OK'}</span></div>
+            `;
+        }
+    } catch(e) { console.error(e); }
+}
+
+async function syncTime() {
+    if(!confirm("Sync camera time with your computer?")) return;
+    const res = await fetch('/api/system/time', { method: 'POST' });
+    if(res.ok) alert("Time synced successfully.");
+    else alert("Failed to sync time.");
+}
+
+async function formatSdCard() {
+    if(!confirm("WARNING: This will erase all data on the SD card. Continue?")) return;
+    const res = await fetch('/api/system/format', { method: 'POST' });
+    if(res.ok) {
+        alert("Format command sent. Camera may reboot.");
+        loadSystemInfo(); // Refresh storage info
+    } else alert("Format failed.");
+}
+
+async function factoryReset() {
+    if(!confirm("Reset camera to factory settings?")) return;
+    await fetch('/api/system/reset', { method: 'POST' });
+    alert("Reset command sent. Camera will reboot.");
 }

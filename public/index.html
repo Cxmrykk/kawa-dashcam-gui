@@ -3,10 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KAWA Dashcam Controller</title>
+    <title>KAWA Dashcam</title>
     <link rel="stylesheet" href="style.css">
-    <!-- JSMpeg for playing the stream -->
-    <script src="jsmpeg.min.js"></script> 
+    <script src="jsmpeg.min.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -16,6 +15,7 @@
                 <button class="nav-btn active" onclick="showTab('live')">Live View</button>
                 <button class="nav-btn" onclick="showTab('gallery')">Gallery</button>
                 <button class="nav-btn" onclick="showTab('settings')">Settings</button>
+                <button class="nav-btn" onclick="showTab('system')">System</button>
             </nav>
             <div class="status-panel">
                 <div id="connectionStatus" class="status disconnected">Disconnected</div>
@@ -24,12 +24,12 @@
         </aside>
 
         <main class="content">
-            <!-- Live View Tab -->
+            <!-- Live Tab -->
             <div id="live" class="tab-content active">
                 <div class="video-wrapper">
                     <canvas id="videoCanvas"></canvas>
                     <div class="overlay-controls">
-                        <button class="action-btn" onclick="takePhoto()">📸 Take Photo</button>
+                        <button class="action-btn" onclick="takePhoto()">📸 Snapshot</button>
                     </div>
                 </div>
             </div>
@@ -44,17 +44,40 @@
                     </select>
                     <button class="refresh-btn" onclick="loadGallery()">Refresh</button>
                 </div>
-                <div id="fileGrid" class="file-grid">
-                    <!-- Files injected here -->
-                </div>
+                <div id="fileGrid" class="file-grid"></div>
             </div>
 
             <!-- Settings Tab -->
             <div id="settings" class="tab-content">
-                <h2>Camera Settings</h2>
+                <h2>Camera Configuration</h2>
                 <div id="settingsList" class="settings-list">
-                    <!-- Settings injected here -->
-                    <p>Connect to camera to view settings.</p>
+                    <p class="placeholder-text">Connect to camera to view settings.</p>
+                </div>
+            </div>
+
+            <!-- System Tab -->
+            <div id="system" class="tab-content">
+                <h2>System Management</h2>
+                
+                <div class="system-card">
+                    <h3>Device Info</h3>
+                    <div id="deviceInfo" class="info-grid">Loading...</div>
+                </div>
+
+                <div class="system-card">
+                    <h3>Storage (SD Card)</h3>
+                    <div id="sdInfo" class="info-grid">Loading...</div>
+                    <div class="action-row">
+                        <button class="danger-btn" onclick="formatSdCard()">Format SD Card</button>
+                    </div>
+                </div>
+
+                <div class="system-card">
+                    <h3>Actions</h3>
+                    <div class="action-row">
+                        <button class="primary-btn" onclick="syncTime()">Sync Time with PC</button>
+                        <button class="danger-btn" onclick="factoryReset()">Factory Reset</button>
+                    </div>
                 </div>
             </div>
         </main>
