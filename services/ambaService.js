@@ -12,9 +12,6 @@ class AmbaService {
         this.responseQueue = [];
     }
 
-    // ... (Keep isAvailable, connect, handleResponse, send, heartbeats from previous answer) ...
-    // Re-paste the connection logic here if you are copy-pasting files entirely.
-    
     async isAvailable() {
         return new Promise((resolve) => {
             const s = new net.Socket();
@@ -30,11 +27,13 @@ class AmbaService {
         return new Promise((resolve, reject) => {
             this.client.connect(this.port, this.ip, () => {
                 this.connected = true;
-                this.send({ token: 0, msg_id: 257 });
+                this.send({ token: 0, msg_id: 257 }); // Start Session
             });
+
             this.client.on('data', (data) => {
                 try {
                     const str = data.toString();
+                    // Handle concatenated JSON packets
                     const parts = str.split('}{').map((p, i, a) => {
                         if(a.length > 1) {
                             if(i === 0) return p + '}';
@@ -46,6 +45,7 @@ class AmbaService {
                     parts.forEach(p => { try { this.handleResponse(JSON.parse(p)); } catch(e){} });
                 } catch (e) { console.error(e); }
             });
+
             this.client.on('close', () => { this.connected = false; this.stopHeartbeat(); });
             this.client.on('error', (err) => reject(err));
             setTimeout(resolve, 1000);
@@ -81,16 +81,19 @@ class AmbaService {
 
     stopHeartbeat() { if (this.heartbeatInterval) clearInterval(this.heartbeatInterval); }
 
-    // --- API ---
-
     async getFileList(type = 'video') {
         const res = await this.send({ token: this.token, msg_id: 268435458, type: type });
         if(res && res.listing) {
-            return res.listing.map(f => ({
-                name: f.filename || f.name,
-                date: f.date,
-                url: `http://${this.ip}/SD0/${type === 'video' ? 'Video' : 'Photo'}/${f.filename || f.name}`
-            }));
+            return res.listing.map(f => {
+                // FIX: Check filename, then name, then fallback to generic
+                const fileName = f.filename || f.name || `Unknown_${Date.now()}`;
+                
+                return {
+                    name: fileName,
+                    date: f.date,
+                    url: `http://${this.ip}/SD0/${type === 'video' ? 'Video' : 'Photo'}/${fileName}`
+                };
+            });
         }
         return [];
     }
@@ -99,34 +102,11 @@ class AmbaService {
     async setSetting(type, param) { return this.send({ token: this.token, msg_id: 2, type, param }); }
     async takePhoto() { return this.send({ token: this.token, msg_id: 769 }); }
     
-    // Amba System Commands
-    async syncTime() {
-        // Amba usually syncs time via msg_id 2, type "camera_clock" or similar, 
-        // but it is not explicitly in the provided Java source. 
-        // We will return a "Not Supported" or attempt a generic set.
-        return { status: "Not implemented in provided source" };
-    }
-
-    async getSdInfo() {
-        // Usually part of msg_id 3 (All Settings) or specific command
-        return { status: "Check Settings" };
-    }
-
-    async formatSdCard() {
-        // AmbaCommand.resetDeviceFactory -> msg_id: 2, type: "Apk_default", param: "yes"
-        // But format is usually different. Based on AmbaFunction.java, formatSdcard() is empty?
-        // We will omit implementation to be safe.
-        return { status: "Not implemented" };
-    }
-
-    async factoryReset() {
-        // AmbaCommand.resetDeviceFactory
-        return this.send({ token: this.token, msg_id: 2, type: "Apk_default", param: "yes" });
-    }
-
-    async getDeviceInfo() {
-        // Usually in getSettings (msg_id 3)
-        return { status: "Check Settings" };
-    }
+    // Amba placeholders for system commands
+    async syncTime() { return { status: "Not implemented" }; }
+    async getSdInfo() { return { status: "Check Settings" }; }
+    async formatSdCard() { return { status: "Not implemented" }; }
+    async factoryReset() { return this.send({ token: this.token, msg_id: 2, type: "Apk_default", param: "yes" }); }
+    async getDeviceInfo() { return { status: "Check Settings" }; }
 }
 module.exports = new AmbaService();

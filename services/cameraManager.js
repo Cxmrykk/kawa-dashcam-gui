@@ -20,7 +20,7 @@ class CameraManager {
             await mstarService.login();
             return { platform: 'Mstar', rtsp: mstarService.rtspUrl };
         }
-        throw new Error("No camera detected.");
+        throw new Error("No camera detected. Connect to Dashcam WiFi.");
     }
 
     getService() {

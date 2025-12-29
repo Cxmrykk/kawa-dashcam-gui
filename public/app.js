@@ -5,7 +5,6 @@ function showTab(tabId) {
     document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     
-    // Auto-load data when tab is clicked if connected
     if(document.getElementById('connectBtn').innerText === "Connected") {
         if(tabId === 'settings') loadSettings();
         if(tabId === 'system') loadSystemInfo();
@@ -80,9 +79,11 @@ async function loadSettings() {
         const data = await res.json();
         list.innerHTML = '';
 
-        // Filter out complex objects that aren't settings (like devinfo, WifiInfo)
+        // Filter out system objects and the 'end' terminator
+        const ignoredKeys = ['devinfo', 'WifiInfo', 'status', 'end'];
+        
         const entries = Object.entries(data).filter(([key, val]) => {
-            return key !== 'devinfo' && key !== 'WifiInfo' && key !== 'status';
+            return !ignoredKeys.includes(key);
         });
 
         entries.forEach(([key, val]) => {
@@ -99,8 +100,8 @@ function createSettingInput(container, key, currentValue, options) {
     const div = document.createElement('div');
     div.className = 'setting-item';
     
-    // Clean up key name (e.g. "AudioRec" -> "Audio Rec")
-    const label = key.replace(/([A-Z])/g, ' $1').trim();
+    // Clean up key name (e.g. "Camera.AutoRot" -> "Camera Auto Rot")
+    const label = key.replace('.', ' ').replace(/([A-Z])/g, ' $1').trim();
 
     let inputHtml = '';
     if (options && Array.isArray(options)) {
@@ -127,31 +128,54 @@ async function takePhoto() {
     alert("Snapshot command sent");
 }
 
-// --- System Functions ---
-
 async function loadSystemInfo() {
     try {
-        const res = await fetch('/api/system/info');
-        const data = await res.json();
+        const resInfo = await fetch('/api/system/info');
+        const dataInfo = await resInfo.json();
         
-        // Render Device Info
+        const resSettings = await fetch('/api/settings');
+        const dataSettings = await resSettings.json();
+
+        // Device Info
         const infoDiv = document.getElementById('deviceInfo');
-        if(data.info) {
+        let serialNum = 'N/A';
+        if (dataSettings.devinfo && dataSettings.devinfo.length > 0) {
+            serialNum = dataSettings.devinfo[0].SN || 'N/A';
+        }
+
+        if(dataInfo.info) {
             infoDiv.innerHTML = `
-                <div class="info-item"><span class="info-label">Model</span><span class="info-val">${data.info.model || 'N/A'}</span></div>
-                <div class="info-item"><span class="info-label">Firmware</span><span class="info-val">${data.info.softversion || 'N/A'}</span></div>
+                <div class="info-item"><span class="info-label">Model</span><span class="info-val">${dataInfo.info.model || 'N/A'}</span></div>
+                <div class="info-item"><span class="info-label">Firmware</span><span class="info-val">${dataInfo.info.softversion || 'N/A'}</span></div>
+                <div class="info-item"><span class="info-label">Serial Number</span><span class="info-val">${serialNum}</span></div>
+                <div class="info-item"><span class="info-label">Build Date</span><span class="info-val">${dataInfo.info.date || 'N/A'}</span></div>
             `;
         }
 
-        // Render SD Info
-        const sdDiv = document.getElementById('sdInfo');
-        if(data.sd) {
-            // Mstar returns strings like "119.0G"
-            sdDiv.innerHTML = `
-                <div class="info-item"><span class="info-label">Total Space</span><span class="info-val">${data.sd.total || 'N/A'}</span></div>
-                <div class="info-item"><span class="info-label">Free Space</span><span class="info-val">${data.sd.free || 'N/A'}</span></div>
-                <div class="info-item"><span class="info-label">Status</span><span class="info-val">${data.sd.sdstat || 'OK'}</span></div>
+        // WiFi Info
+        const wifiDiv = document.getElementById('wifiInfo');
+        if (dataSettings.WifiInfo && dataSettings.WifiInfo.length > 0) {
+            const wifi = dataSettings.WifiInfo[0];
+            wifiDiv.innerHTML = `
+                <div class="info-item"><span class="info-label">SSID</span><span class="info-val">${wifi.ssid}</span></div>
+                <div class="info-item"><span class="info-label">Password</span><span class="info-val">${wifi.pwd}</span></div>
+                <div class="info-item"><span class="info-label">IP Address</span><span class="info-val">192.168.0.1</span></div>
             `;
+        }
+
+        // SD Info
+        const sdDiv = document.getElementById('sdInfo');
+        if(dataInfo.sd) {
+            const stat = dataInfo.sd.sdstat;
+            if (stat === 'NONE') {
+                sdDiv.innerHTML = `<div class="info-item" style="color:#ff5555; font-weight:bold;">No SD Card Inserted</div>`;
+            } else {
+                sdDiv.innerHTML = `
+                    <div class="info-item"><span class="info-label">Total Space</span><span class="info-val">${dataInfo.sd.total}</span></div>
+                    <div class="info-item"><span class="info-label">Free Space</span><span class="info-val">${dataInfo.sd.free}</span></div>
+                    <div class="info-item"><span class="info-label">Status</span><span class="info-val">${stat}</span></div>
+                `;
+            }
         }
     } catch(e) { console.error(e); }
 }
@@ -168,7 +192,7 @@ async function formatSdCard() {
     const res = await fetch('/api/system/format', { method: 'POST' });
     if(res.ok) {
         alert("Format command sent. Camera may reboot.");
-        loadSystemInfo(); // Refresh storage info
+        loadSystemInfo();
     } else alert("Format failed.");
 }
 

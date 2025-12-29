@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KAWA Dashcam</title>
+    <title>KAWA Dashcam Controller</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Ensure jsmpeg.min.js is in the public folder -->
     <script src="jsmpeg.min.js"></script>
 </head>
 <body>
@@ -62,6 +63,13 @@
                 <div class="system-card">
                     <h3>Device Info</h3>
                     <div id="deviceInfo" class="info-grid">Loading...</div>
+                </div>
+
+                <div class="system-card">
+                    <h3>WiFi Settings</h3>
+                    <div id="wifiInfo" class="info-grid">
+                        <span class="placeholder-text">Loading WiFi info...</span>
+                    </div>
                 </div>
 
                 <div class="system-card">

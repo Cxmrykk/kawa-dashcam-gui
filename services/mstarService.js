@@ -18,6 +18,7 @@ class MstarService {
 
     async login() {
         try {
+            // Mstar login usually sets a session cookie or enables the IP
             const cmd = `${this.baseUrl}/client.cgi?&-operation=login&-ip=192.168.0.2`;
             const signedUrl = CgiUtils.signCommand(cmd, "");
             await axios.get(signedUrl);
@@ -25,24 +26,29 @@ class MstarService {
         } catch (e) { return false; }
     }
 
-    // --- Files ---
     async getFileList(type = 'Normal') {
         const cmd = `${this.baseUrl}/getAllVideoInfo.cgi?&-type=${type}`;
         const signedUrl = CgiUtils.signCommand(cmd, this.token);
         const response = await axios.get(signedUrl);
+        
         if(response.data && response.data.file) {
-            return response.data.file.map(f => ({
-                name: f.name,
-                path: f.path,
-                size: f.size,
-                time: f.time,
-                url: `http://${this.ip}${f.path}`
-            }));
+            return response.data.file.map(f => {
+                // FIX: If f.name is undefined, extract it from f.path
+                // e.g. "/mnt/mmc/Normal/Front/20230101.mp4" -> "20230101.mp4"
+                const fileName = f.name || f.path.split('/').pop();
+
+                return {
+                    name: fileName,
+                    path: f.path,
+                    size: f.size,
+                    time: f.time,
+                    url: `http://${this.ip}${f.path}`
+                };
+            });
         }
         return [];
     }
 
-    // --- Settings ---
     async getSettings() {
         const cmd = `${this.baseUrl}/getAllSettings.cgi?`;
         const signedUrl = CgiUtils.signCommand(cmd, this.token);
@@ -55,10 +61,7 @@ class MstarService {
         return (await axios.get(signedUrl)).data;
     }
 
-    // --- System Actions ---
-    
     async syncTime() {
-        // Format: YYYYMMDDHHmmss
         const now = new Date();
         const pad = (n) => n.toString().padStart(2, '0');
         const timeStr = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
@@ -71,7 +74,7 @@ class MstarService {
     async getSdInfo() {
         const cmd = `${this.baseUrl}/getSDInfo.cgi?`;
         const signedUrl = CgiUtils.signCommand(cmd, this.token);
-        return (await axios.get(signedUrl)).data; // Returns { total, free, status... }
+        return (await axios.get(signedUrl)).data;
     }
 
     async formatSdCard() {
@@ -89,7 +92,7 @@ class MstarService {
     async getDeviceInfo() {
         const cmd = `${this.baseUrl}/getDeviceAttr.cgi?`;
         const signedUrl = CgiUtils.signCommand(cmd, this.token);
-        return (await axios.get(signedUrl)).data; // Returns model, softversion, etc.
+        return (await axios.get(signedUrl)).data;
     }
 
     async takePhoto() {
