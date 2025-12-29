@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KAWA Dashcam Controller</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- JSMpeg for playing the stream -->
+    <script src="jsmpeg.min.js"></script> 
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="logo">KAWA<span>Control</span></div>
+            <nav>
+                <button class="nav-btn active" onclick="showTab('live')">Live View</button>
+                <button class="nav-btn" onclick="showTab('gallery')">Gallery</button>
+                <button class="nav-btn" onclick="showTab('settings')">Settings</button>
+            </nav>
+            <div class="status-panel">
+                <div id="connectionStatus" class="status disconnected">Disconnected</div>
+                <button id="connectBtn" onclick="connectCamera()">Connect</button>
+            </div>
+        </aside>
+
+        <main class="content">
+            <!-- Live View Tab -->
+            <div id="live" class="tab-content active">
+                <div class="video-wrapper">
+                    <canvas id="videoCanvas"></canvas>
+                    <div class="overlay-controls">
+                        <button class="action-btn" onclick="takePhoto()">📸 Take Photo</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gallery Tab -->
+            <div id="gallery" class="tab-content">
+                <div class="gallery-controls">
+                    <select id="fileType" onchange="loadGallery()">
+                        <option value="video">Normal Video</option>
+                        <option value="event">Emergency Event</option>
+                        <option value="photo">Photos</option>
+                    </select>
+                    <button class="refresh-btn" onclick="loadGallery()">Refresh</button>
+                </div>
+                <div id="fileGrid" class="file-grid">
+                    <!-- Files injected here -->
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settings" class="tab-content">
+                <h2>Camera Settings</h2>
+                <div id="settingsList" class="settings-list">
+                    <!-- Settings injected here -->
+                    <p>Connect to camera to view settings.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="app.js"></script>
+</body>
+</html>
